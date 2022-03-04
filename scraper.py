@@ -2,6 +2,7 @@ import isodate
 import googleapiclient.discovery
 import googlemaps
 import pandas as pd
+import os
 
 '''
 Table spec:
@@ -16,7 +17,7 @@ Table spec:
     night?      true if video taken at night
 '''
 
-temp_api_key_to_be_migrated_definitely = "AIzaSyD7bsSw5gCozX1h8d3BgS0uwTUJYOgI-8U"
+temp_api_key_to_be_migrated_definitely = os.getenv("COMMUTER_API_KEY")
 
 
 COLUMNS = [
