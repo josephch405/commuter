@@ -16,45 +16,61 @@ Table spec:
     night?      true if video taken at night
 '''
 
-temp_api_key_to_be_migrated_definitely = "AIzaSyCta9tiRjVtAq1RefBqpnZercOulGb1BTc"
+temp_api_key_to_be_migrated_definitely = "AIzaSyD7bsSw5gCozX1h8d3BgS0uwTUJYOgI-8U"
+
+
+COLUMNS = [
+    "video_id", "title", "description", "start", "end", "continent", "country", "city",
+    "transport", "title_geocode", "description_geocode"
+]
+
+CSV_PATH = "db.csv"
 
 
 def init():
     try:
-        db_df = pd.read_csv("db.csv")
+        db_df = pd.read_csv(CSV_PATH)
     except FileNotFoundError:
-        db_df = pd.DataFrame(columns=[
-            "video_id", "start", "end", "continent", "country", "city",
-            "transport"
-        ])
+        db_df = pd.DataFrame(columns=COLUMNS)
     youtube = googleapiclient.discovery.build(
         "youtube", "v3", developerKey=temp_api_key_to_be_migrated_definitely)
     gmaps = googlemaps.Client(key=temp_api_key_to_be_migrated_definitely)
     return db_df, youtube, gmaps
 
 
-def add(database_df, youtube, gmaps):
-    vid_id = input("Video ID: ")
+def add(database_df: pd.DataFrame, youtube, gmaps: googlemaps.Client) -> pd.DataFrame:
+    video_id = input("Video ID: ")
     req = youtube.videos().list(
         part="snippet,contentDetails",
-        id=vid_id
+        id=video_id
     )
+    if (database_df['video_id'] == video_id).any():
+        print("Video already exists!")
+        return
     response = req.execute()
     print(response['items'][0]['snippet']['title'])
+    print(response['items'][0]['snippet'].keys())
     duration = isodate.parse_duration(
         response['items'][0]['contentDetails']['duration']).total_seconds()
-    print(gmaps.geocode(response['items'][0]['snippet']['title']))
-    database_df.append({
-        "video_id": vid_id,
+    title = response['items'][0]['snippet']['title']
+    description = response['items'][0]['snippet']['description']
+    channel_id = response['items'][0]['snippet']['channelId']
+    database_df = database_df.append({
+        "video_id": video_id,
+        "title": title,
+        "description": description,
+        "channel_id": channel_id,
         "start": 30,
         "end": "",
         "duration": duration,
         "continent": None,
         "country": None,
         "city": None,
-        "transport": None
+        "transport": None,
+        "title_geocode": gmaps.geocode(title),
+        "description_geocode": gmaps.geocode(description),
     }, ignore_index=True)
-    return
+    return database_df
 
 
 def related(youtube):
@@ -66,15 +82,15 @@ def related(youtube):
     response = req.execute()
 
 
-def edit():
-    return
+def edit(database_df: pd.DataFrame):
+    return database_df
 
 
-def remove():
-    return
+def remove(database_df: pd.DataFrame):
+    return database_df
 
 
-def main_loop(database_df, youtube, gmaps):
+def main_loop(database_df: pd.DataFrame, youtube, gmaps):
     actions_map = {
         "add": add,
         "edit": edit,
@@ -83,8 +99,8 @@ def main_loop(database_df, youtube, gmaps):
     while True:
         action = input("Select one of: add, edit, remove\n").lower()
         if action in actions_map:
-            actions_map[action](database_df, youtube, gmaps)
-            # SAVE
+            database_df = actions_map[action](database_df, youtube, gmaps)
+            database_df.to_csv(CSV_PATH, index=False)
         else:
             continue
 
